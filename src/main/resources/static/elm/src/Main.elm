@@ -59,24 +59,24 @@ type Msg
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg {darlehen, tableState, reservations, error} =
+update msg model =
   case msg of
     Input newInput ->
         case String.toInt newInput of
-            Ok n    ->  (Model n tableState reservations "", Cmd.none)
-            Err err ->  (Model darlehen tableState reservations err, Cmd.none)
+            Ok n    ->  ({model | darlehen = n, error = ""}, Cmd.none)
+            Err err ->  ({model | error = err}, Cmd.none)
 
     Send ->
-        let res = encodeReservation (Reservation darlehen)
-        in (Model darlehen tableState reservations error, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
+        let res = encodeReservation (Reservation model.darlehen)
+        in (model, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
 
     NewMessage message ->
         case decodeReservation message of
-            Ok reservation -> (Model darlehen tableState ( reservation :: reservations) error, Cmd.none)
-            Err err        -> (Model darlehen tableState reservations error, Cmd.none)
+            Ok reservation -> ({model | reservations = reservation :: model.reservations} , Cmd.none)
+            Err err        -> ({model | error = err}, Cmd.none)
 
     SetTableState newState ->
-      ( { darlehen = darlehen, tableState = newState, reservations = reservations, error = error }, Cmd.none )
+      ( {model | tableState = newState}, Cmd.none )
 
 
 -- SUBSCRIPTIONS
