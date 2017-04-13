@@ -21,53 +21,63 @@ main =
 -- MODEL
 type alias Reservation =
   { darlehen : Int
+  , name : String
   }
 
 type alias Model =
   { darlehen : Int
+  , name : String
   , tableState : Table.State
   , reservations : List Reservation
   , error : String
   }
 
+type Msg
+  = InputDarlehen String
+  | InputName String
+  | Send
+  | NewMessage String
+  | SetTableState Table.State
+
 
 init : (Model, Cmd Msg)
 init =
-  (Model 0 (Table.initialSort "Darlehen") [] "", Cmd.none)
+  (Model 0 "" (Table.initialSort "Darlehen") [] "", Cmd.none)
 
 reservationDecoder : Decode.Decoder Reservation
 reservationDecoder =
-    Decode.map Reservation (Decode.at [ "darlehen" ] Decode.int)
+    Decode.map2 Reservation
+        (Decode.at [ "darlehen" ] Decode.int)
+        (Decode.at [ "name" ] Decode.string)
 
 decodeReservation : String -> Result String Reservation
 decodeReservation str =
     Decode.decodeString reservationDecoder str
 
 encodeReservation : Reservation -> Encode.Value
-encodeReservation reservation =
+encodeReservation {darlehen, name} =
     Encode.object
-        [ ("darlehen", Encode.int reservation.darlehen)
+        [ ("darlehen", Encode.int darlehen)
+        , ("name", Encode.string name)
         ]
 
 -- UPDATE
 
-type Msg
-  = Input String
-  | Send
-  | NewMessage String
-  | SetTableState Table.State
-
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
+
   case msg of
-    Input newInput ->
-        case String.toInt newInput of
+
+    InputDarlehen darlehen ->
+        case String.toInt darlehen of
             Ok n    ->  ({model | darlehen = n, error = ""}, Cmd.none)
             Err err ->  ({model | error = err}, Cmd.none)
 
+    InputName name ->
+        ({model | name = name}, Cmd.none)
+
     Send ->
-        let res = encodeReservation (Reservation model.darlehen)
+        let res = encodeReservation (Reservation model.darlehen model.name)
         in (model, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
 
     NewMessage message ->
@@ -91,7 +101,8 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div []
-    [ input [placeholder "Darlehen", onInput Input] []
+    [ input [placeholder "Darlehen", onInput InputDarlehen] []
+    , input [placeholder "Name", onInput InputName] []
     , button [onClick Send] [text "Reservierung"]
     , Table.view config model.tableState model.reservations
     , div [] [text model.error]
@@ -105,5 +116,6 @@ config =
     , toMsg = SetTableState
     , columns =
         [ Table.intColumn "Darlehen" .darlehen
+        , Table.stringColumn "Name" .name
         ]
     }

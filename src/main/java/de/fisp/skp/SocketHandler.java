@@ -15,7 +15,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component
 public class SocketHandler extends TextWebSocketHandler {
 
+	// todo ConcurrentHashMap ?
 	private List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+
 	private ObjectMapper mapper;
 
 	public SocketHandler() {
@@ -26,6 +28,7 @@ public class SocketHandler extends TextWebSocketHandler {
 	public void handleTextMessage(WebSocketSession session, TextMessage message) throws InterruptedException, IOException {
 		for (WebSocketSession webSocketSession : sessions) {
 			String payload = message.getPayload();
+			// todo: payload -> (blocking)queue -> store -> respond to sessions
 			Reservation reservation = mapper.readValue(payload, Reservation.class);
 
 			String result = mapper.writeValueAsString(reservation);
