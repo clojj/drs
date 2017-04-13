@@ -6,6 +6,8 @@ import Html.Events exposing (..)
 import WebSocket
 import Table
 import Json.Decode as Decode exposing(..)
+import Json.Encode as Encode exposing(..)
+import Basics
 
 main =
   Html.program
@@ -17,24 +19,35 @@ main =
 
 
 -- MODEL
-type alias Message =
-  { msg : String
+type alias Reservation =
+  { darlehen : Int
   }
 
 type alias Model =
-  { input : String
+  { darlehen : Int
   , tableState : Table.State
-  , messages : List Message
+  , reservations : List Reservation
+  , error : String
   }
 
 
 init : (Model, Cmd Msg)
 init =
-  (Model "" (Table.initialSort "Message") [], Cmd.none)
+  (Model 0 (Table.initialSort "Darlehen") [] "", Cmd.none)
 
-messageDecoder : Decode.Decoder Message
-messageDecoder =
-    Decode.map Message (Decode.at [ "msg" ] Decode.string)
+reservationDecoder : Decode.Decoder Reservation
+reservationDecoder =
+    Decode.map Reservation (Decode.at [ "darlehen" ] Decode.int)
+
+decodeReservation : String -> Result String Reservation
+decodeReservation str =
+    Decode.decodeString reservationDecoder str
+
+encodeReservation : Reservation -> Encode.Value
+encodeReservation reservation =
+    Encode.object
+        [ ("darlehen", Encode.int reservation.darlehen)
+        ]
 
 -- UPDATE
 
@@ -46,19 +59,25 @@ type Msg
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg {input, tableState, messages} =
+update msg {darlehen, tableState, reservations, error} =
   case msg of
     Input newInput ->
-      (Model newInput tableState messages , Cmd.none)
+        case String.toInt newInput of
+            Ok n    ->  (Model n tableState reservations "", Cmd.none)
+            Err err ->  (Model darlehen tableState reservations err, Cmd.none)
 
     Send ->
-      (Model "" tableState messages, WebSocket.send "ws://localhost:8080/drs" input)
+        let res = encodeReservation (Reservation darlehen)
+        in (Model darlehen tableState reservations error, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
 
-    NewMessage str ->
-      (Model input tableState ((Message str) :: messages), Cmd.none)
+    NewMessage message ->
+        case decodeReservation message of
+            Ok reservation -> (Model darlehen tableState ( reservation :: reservations) error, Cmd.none)
+            Err err        -> (Model darlehen tableState reservations error, Cmd.none)
 
     SetTableState newState ->
-      ( { input = input, tableState = newState, messages = messages } , Cmd.none )
+      ( { darlehen = darlehen, tableState = newState, reservations = reservations, error = error }, Cmd.none )
+
 
 -- SUBSCRIPTIONS
 
@@ -72,18 +91,19 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div []
-    [ input [placeholder "Name", onInput Input] []
+    [ input [placeholder "Darlehen", onInput Input] []
     , button [onClick Send] [text "Reservierung"]
-    , Table.view config model.tableState model.messages
+    , Table.view config model.tableState model.reservations
+    , div [] [text model.error]
     ]
 
 
-config : Table.Config Message Msg
+config : Table.Config Reservation Msg
 config =
   Table.config
-    { toId = .msg
+    { toId =  toString << .darlehen
     , toMsg = SetTableState
     , columns =
-        [ Table.stringColumn "Message" .msg
+        [ Table.intColumn "Darlehen" .darlehen
         ]
     }

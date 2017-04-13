@@ -1,5 +1,7 @@
 package de.fisp.skp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import de.fisp.skp.model.Reservation;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -14,11 +16,20 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class SocketHandler extends TextWebSocketHandler {
 
 	private List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+	private ObjectMapper mapper;
+
+	public SocketHandler() {
+		mapper = new ObjectMapper();
+	}
 
 	@Override
 	public void handleTextMessage(WebSocketSession session, TextMessage message) throws InterruptedException, IOException {
 		for (WebSocketSession webSocketSession : sessions) {
-			webSocketSession.sendMessage(new TextMessage(message.getPayload()));
+			String payload = message.getPayload();
+			Reservation reservation = mapper.readValue(payload, Reservation.class);
+
+			String result = mapper.writeValueAsString(reservation);
+			webSocketSession.sendMessage(new TextMessage(result));
 		}
 	}
 
