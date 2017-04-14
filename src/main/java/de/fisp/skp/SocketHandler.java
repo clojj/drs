@@ -26,13 +26,14 @@ public class SocketHandler extends TextWebSocketHandler {
 
 	@Override
 	public void handleTextMessage(WebSocketSession session, TextMessage message) throws InterruptedException, IOException {
-		for (WebSocketSession webSocketSession : sessions) {
+		synchronized (this) {
 			String payload = message.getPayload();
-			// todo: payload -> (blocking)queue -> store -> respond to sessions
 			Reservation reservation = mapper.readValue(payload, Reservation.class);
-
-			String result = mapper.writeValueAsString(reservation);
-			webSocketSession.sendMessage(new TextMessage(result));
+			// todo update store
+			for (WebSocketSession webSocketSession : sessions) {
+                String result = mapper.writeValueAsString(reservation);
+                webSocketSession.sendMessage(new TextMessage(result));
+            }
 		}
 	}
 

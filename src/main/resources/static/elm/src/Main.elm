@@ -8,6 +8,11 @@ import Table
 import Json.Decode as Decode exposing(..)
 import Json.Encode as Encode exposing(..)
 import Basics
+import Regex
+
+import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
+import Bootstrap.Grid.Row as Row
 
 main =
   Html.program
@@ -20,12 +25,12 @@ main =
 
 -- MODEL
 type alias Reservation =
-  { darlehen : Int
+  { darlehen : String
   , name : String
   }
 
 type alias Model =
-  { darlehen : Int
+  { darlehen : String
   , name : String
   , tableState : Table.State
   , reservations : List Reservation
@@ -42,12 +47,12 @@ type Msg
 
 init : (Model, Cmd Msg)
 init =
-  (Model 0 "" (Table.initialSort "Darlehen") [] "", Cmd.none)
+  (Model "" "" (Table.initialSort "Darlehen") [] "", Cmd.none)
 
 reservationDecoder : Decode.Decoder Reservation
 reservationDecoder =
     Decode.map2 Reservation
-        (Decode.at [ "darlehen" ] Decode.int)
+        (Decode.at [ "darlehen" ] Decode.string)
         (Decode.at [ "name" ] Decode.string)
 
 decodeReservation : String -> Result String Reservation
@@ -57,11 +62,15 @@ decodeReservation str =
 encodeReservation : Reservation -> Encode.Value
 encodeReservation {darlehen, name} =
     Encode.object
-        [ ("darlehen", Encode.int darlehen)
+        [ ("darlehen", Encode.string darlehen)
         , ("name", Encode.string name)
         ]
 
 -- UPDATE
+
+validateDarlehen : String -> Bool
+validateDarlehen =
+  ((==) 0) << String.length << Regex.replace Regex.All (Regex.regex "[0-9]{8}") (\_ -> "")
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -69,16 +78,20 @@ update msg model =
   case msg of
 
     InputDarlehen darlehen ->
-        case String.toInt darlehen of
-            Ok n    ->  ({model | darlehen = n, error = ""}, Cmd.none)
-            Err err ->  ({model | error = err}, Cmd.none)
+        if validateDarlehen darlehen
+        then ({model | darlehen = darlehen, error = ""}, Cmd.none)
+        else
+          let errMsg = case darlehen of
+                          "" -> ""
+                          _  -> "ungültige Darlehensnummer"
+          in ({model | darlehen = darlehen, error = errMsg}, Cmd.none)
 
     InputName name ->
         ({model | name = name}, Cmd.none)
 
     Send ->
         let res = encodeReservation (Reservation model.darlehen model.name)
-        in (model, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
+        in ({model | darlehen = "", name = ""}, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
 
     NewMessage message ->
         case decodeReservation message of
@@ -98,24 +111,43 @@ subscriptions model =
 
 -- VIEW
 
+invalidInput : Model -> Bool
+invalidInput { darlehen, name, error } =
+  error /= "" || darlehen == "" || name == ""
+
+
 view : Model -> Html Msg
 view model =
-  div []
-    [ input [placeholder "Darlehen", onInput InputDarlehen] []
-    , input [placeholder "Name", onInput InputName] []
-    , button [onClick Send] [text "Reservierung"]
-    , Table.view config model.tableState model.reservations
-    , div [] [text model.error]
+  Grid.container []
+    [ Grid.row []
+      [ Grid.col [ Col.xs12, Col.mdAuto ]
+        [ input [placeholder "Darlehen", onInput InputDarlehen, Html.Attributes.value model.darlehen] []
+        , input [placeholder "Name", onInput InputName, Html.Attributes.value model.name] []
+        , button [onClick Send, disabled (invalidInput model)] [text "Ok"]
+        ]
+      ]
+    , Grid.row []
+      [ Grid.col [ Col.xs12, Col.mdAuto ]
+        [ div [ style [ ("color", "red") ], class "small" ]
+          [ text model.error ]
+        ]
+      ]
+    , Grid.row []
+      [ Grid.col [ Col.xs12, Col.mdAuto ]
+        [ div []
+          [ label [] [ text "Reservierungen" ]
+          , Table.view config model.tableState model.reservations ]
+          ]
+      ]
     ]
-
 
 config : Table.Config Reservation Msg
 config =
   Table.config
-    { toId =  toString << .darlehen
+    { toId = .darlehen
     , toMsg = SetTableState
     , columns =
-        [ Table.intColumn "Darlehen" .darlehen
+        [ Table.stringColumn "Darlehen" .darlehen
         , Table.stringColumn "Name" .name
         ]
     }

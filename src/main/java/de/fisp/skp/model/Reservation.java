@@ -8,17 +8,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class Reservation {
 
     @JsonProperty
-    private Integer darlehen;
+    private String darlehen;
 
     @JsonProperty
     private String name;
 
-    public Integer getDarlehen() {
+    public String getDarlehen() {
         return darlehen;
-    }
-
-    public void setDarlehen(Integer darlehen) {
-        this.darlehen = darlehen;
     }
 
     public String getName() {
