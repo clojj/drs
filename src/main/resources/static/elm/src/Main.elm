@@ -35,6 +35,7 @@ type alias Model =
   , tableState : Table.State
   , reservations : List Reservation
   , error : String
+  , data : String
   }
 
 type Msg
@@ -42,12 +43,13 @@ type Msg
   | InputName String
   | Send
   | NewMessage String
+  | UpdateMessage String
   | SetTableState Table.State
 
 
 init : (Model, Cmd Msg)
 init =
-  (Model "" "" (Table.initialSort "Darlehen") [] "", Cmd.none)
+  (Model "" "" (Table.initialSort "Darlehen") [] "" "waiting for update...", Cmd.none)
 
 reservationDecoder : Decode.Decoder Reservation
 reservationDecoder =
@@ -93,6 +95,9 @@ update msg model =
         let res = encodeReservation (Reservation model.darlehen model.name)
         in ({model | darlehen = "", name = ""}, WebSocket.send "ws://localhost:8080/drs" (Encode.encode 2 res))
 
+    UpdateMessage data ->
+        ({model | data = data}, Cmd.none)
+
     NewMessage message ->
         case decodeReservation message of
             Ok reservation -> ({model | reservations = reservation :: model.reservations} , Cmd.none)
@@ -106,7 +111,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  WebSocket.listen "ws://localhost:8080/drs" NewMessage
+  Sub.batch
+    [
+      WebSocket.listen "ws://localhost:8080/drs" NewMessage
+    , WebSocket.listen "ws://localhost:8080/update" UpdateMessage
+    ]
 
 
 -- VIEW
@@ -137,6 +146,12 @@ view model =
         [ div []
           [ label [] [ text "Reservierungen" ]
           , Table.view config model.tableState model.reservations ]
+          ]
+      ]
+    , Grid.row []
+      [ Grid.col [ Col.xs12, Col.mdAuto ]
+        [ div []
+          [ text model.data ]
           ]
       ]
     ]
