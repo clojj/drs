@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 
 @Embeddable
-public class StoreId implements Serializable {
+public class DatomId implements Serializable {
 
     @Column
     private String darlehen;
@@ -43,7 +43,7 @@ public class StoreId implements Serializable {
 
     @Override
     public String toString() {
-        return "StoreId{" +
+        return "DatomId{" +
                 "darlehen='" + darlehen + '\'' +
                 ", fieldname='" + fieldname + '\'' +
                 ", validFrom=" + validFrom +

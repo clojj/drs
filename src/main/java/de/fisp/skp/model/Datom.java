@@ -5,23 +5,20 @@ import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
 
 @Entity
-public class Store {
+public class Datom {
 
     @EmbeddedId
-    private StoreId storeId;
+    private DatomId datomId;
 
     @Column
     private String value;
 
-    protected Store() {
+    public DatomId getDatomId() {
+        return datomId;
     }
 
-    public StoreId getStoreId() {
-        return storeId;
-    }
-
-    public void setStoreId(StoreId storeId) {
-        this.storeId = storeId;
+    public void setDatomId(DatomId datomId) {
+        this.datomId = datomId;
     }
 
     public String getValue() {
@@ -34,8 +31,8 @@ public class Store {
 
     @Override
     public String toString() {
-        return "Store{" +
-                "storeId=" + storeId +
+        return "Datom{" +
+                "datomId=" + datomId +
                 ", value='" + value + '\'' +
                 '}';
     }
