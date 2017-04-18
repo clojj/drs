@@ -8,6 +8,7 @@ public class PojoA {
     private BigDecimal someMoney;
     private Date someDate;
     private boolean someFlag;
+    private int someInt;
 
     public String getSomeId() {
         return someId;
@@ -39,5 +40,13 @@ public class PojoA {
 
     public void setSomeFlag(boolean someFlag) {
         this.someFlag = someFlag;
+    }
+
+    public int getSomeInt() {
+        return someInt;
+    }
+
+    public void setSomeInt(int someInt) {
+        this.someInt = someInt;
     }
 }
